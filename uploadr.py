@@ -377,7 +377,7 @@ class Uploadr:
                 print("Waiting " + str(DRIP_TIME) + " seconds before next upload")
                 time.sleep(DRIP_TIME)
             count = count + 1;
-            if (count % 100 == 0):
+            if (count % 1000 == 0):
                 print("   " + str(count) + " files processed (uploaded, md5ed or timestamp checked)")
         if (count % 100 > 0):
             print("   " + str(count) + " files processed (uploaded, md5ed or timestamp checked)")
@@ -480,7 +480,6 @@ class Uploadr:
                         FLICKR["description"] = args.description
                     if args.tags:  # Append
                         FLICKR["tags"] += " "
-
                     file_checksum = self.md5Checksum(file)
                     d = {
                         "auth_token": str(self.token),
@@ -502,8 +501,12 @@ class Uploadr:
                     search_result = None
                     for x in range(0, MAX_UPLOAD_ATTEMPTS):
                         try:
-                            res = parse(urllib2.urlopen(url, timeout=SOCKET_TIMEOUT))
-                            search_result = None
+                            print("Check is file already uploaded...")
+                            search_result = self.photos_search(file_checksum)
+                            if not search_result or int(search_result["photos"]["total"]) != 1:
+                                print("not found, upload file...")
+                                res = parse(urllib2.urlopen(url, timeout=SOCKET_TIMEOUT))
+                                search_result = None
                             break
                         except (IOError, httplib.HTTPException):
                             print(str(sys.exc_info()))
@@ -557,66 +560,70 @@ class Uploadr:
 
     def replacePhoto(self, file, file_id, oldFileMd5, fileMd5, last_modified, cur, con):
         success = False
-        print("Replacing the file: " + file + "...")
+        filename, extension = os.path.splitext(file)
         try:
-            photo = ('photo', file.encode('utf-8'), open(file, 'rb').read())
+            if extension in ('.mov', '.mp4', '.3gp'):
+                print("Not replacing movie file, just updating (replacing unsupported by flickr): " + file + "...")
+            else:
+                print("Replacing the file: " + file + "...")
+                photo = ('photo', file, open(file, 'rb').read())
 
-            d = {
-                "auth_token": str(self.token),
-                "photo_id": str(file_id)
-            }
-            sig = self.signCall(d)
-            d["api_sig"] = sig
-            d["api_key"] = FLICKR["api_key"]
-            url = self.build_request(api.replace, d, (photo,))
+                d = {
+                    "auth_token": str(self.token),
+                    "photo_id": str(file_id)
+                }
+                sig = self.signCall(d)
+                d["api_sig"] = sig
+                d["api_key"] = FLICKR["api_key"]
+                url = self.build_request(api.replace, d, (photo,))
 
-            res = None
-            res_add_tag = None
-            res_get_info = None
+                res = None
+                res_add_tag = None
+                res_get_info = None
 
-            for x in range(0, MAX_UPLOAD_ATTEMPTS):
-                try:
-                    res = parse(urllib2.urlopen(url, timeout=SOCKET_TIMEOUT))
-                    if res.documentElement.attributes['stat'].value == "ok":
-                        res_add_tag = self.photos_add_tags(file_id, ['checksum:{}'.format(fileMd5)])
-                        if res_add_tag['stat'] == 'ok':
-                            res_get_info = flick.photos_get_info(file_id)
-                            if res_get_info['stat'] == 'ok':
-                                tag_id = None
-                                for tag in res_get_info['photo']['tags']['tag']:
-                                    if tag['raw'] == 'checksum:{}'.format(oldFileMd5):
-                                        tag_id = tag['id']
+                for x in range(0, MAX_UPLOAD_ATTEMPTS):
+                    try:
+                        res = parse(urllib2.urlopen(url, timeout=SOCKET_TIMEOUT))
+                        if res.documentElement.attributes['stat'].value == "ok":
+                            res_add_tag = self.photos_add_tags(file_id, ['checksum:{}'.format(fileMd5)])
+                            if res_add_tag['stat'] == 'ok':
+                                res_get_info = flick.photos_get_info(file_id)
+                                if res_get_info['stat'] == 'ok':
+                                    tag_id = None
+                                    for tag in res_get_info['photo']['tags']['tag']:
+                                        if tag['raw'] == 'checksum:{}'.format(oldFileMd5):
+                                            tag_id = tag['id']
+                                            break
+                                    if not tag_id:
+                                        print("Can't find tag {} for file {}".format(tag_id, file_id))
                                         break
-                                if not tag_id:
-                                    print("Can't find tag {} for file {}".format(tag_id, file_id))
-                                    break
-                                else:
-                                    self.photos_remove_tag(tag_id)
-                    break
-                except (IOError, ValueError, httplib.HTTPException):
-                    print(str(sys.exc_info()))
-                    print("Replacing again")
-                    time.sleep(5)
+                                    else:
+                                        self.photos_remove_tag(tag_id)
+                        break
+                    except (IOError, ValueError, httplib.HTTPException):
+                        print(str(sys.exc_info()))
+                        print("Replacing again")
+                        time.sleep(5)
 
-                    if x == MAX_UPLOAD_ATTEMPTS - 1:
-                        raise ValueError("Reached maximum number of attempts to replace, skipping")
-                    continue
+                        if x == MAX_UPLOAD_ATTEMPTS - 1:
+                            raise ValueError("Reached maximum number of attempts to replace, skipping")
+                        continue
 
-            if res.documentElement.attributes['stat'].value != "ok" \
-                    or res_add_tag['stat'] != 'ok' \
-                    or res_get_info['stat'] != 'ok':
-                print("A problem occurred while attempting to upload the file: " + file)
+                if res.documentElement.attributes['stat'].value != "ok" \
+                        or res_add_tag['stat'] != 'ok' \
+                        or res_get_info['stat'] != 'ok':
+                    print("A problem occurred while attempting to upload the file: " + file)
 
-            if res.documentElement.attributes['stat'].value != "ok":
-                raise IOError(str(res.toxml()))
+                if res.documentElement.attributes['stat'].value != "ok":
+                    raise IOError(str(res.toxml()))
 
-            if res_add_tag['stat'] != 'ok':
-                raise IOError(res_add_tag)
+                if res_add_tag['stat'] != 'ok':
+                    raise IOError(res_add_tag)
 
-            if res_get_info['stat'] != 'ok':
-                raise IOError(res_get_info)
+                if res_get_info['stat'] != 'ok':
+                    raise IOError(res_get_info)
 
-            print("Successfully replaced the file: " + file)
+                print("Successfully replaced the file: " + file)
 
             # Add to set
             cur.execute('UPDATE files SET md5 = ?,last_modified = ? WHERE files_id = ?',
