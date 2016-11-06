@@ -646,10 +646,12 @@ class Uploadr:
             if stored_last_modified != last_modified:
                 file_md5 = md5Checksum(file_path)
                 if file_md5 != str(stored_md5):
+                    print("File Change...replacing " + file_path + "...")
+                    left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
+                    assert 1 == left_photos
                     with con:
                         cur = con.cursor()
                         self.deleteFile(files_id, file_path, cur)
-                    left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
                     count = 0
 
                     while left_photos > 0:
