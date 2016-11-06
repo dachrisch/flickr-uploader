@@ -611,7 +611,7 @@ class Uploadr:
             d["api_key"] = FLICKR["api_key"]
             url = build_request(api.upload, d, (photo,))
 
-            print("Check is file md5(%s) already uploaded..." % file_checksum)
+            print("Check is %s(%s) already uploaded..." % (file_path, file_checksum))
             search_result = self.photos_search(file_checksum)
             if int(search_result["photos"]["total"]) == 0:
                 print("not found, upload file...")
@@ -623,8 +623,8 @@ class Uploadr:
 
                 file_id = int(str(res.getElementsByTagName('photoid')[0].firstChild.nodeValue))
             elif int(search_result["photos"]["total"]) == 1:
-                print "found one photo...using the uploaded version"
                 file_id = int(search_result["photos"]["photo"][0]["id"])
+                print "found one photo...using the uploaded version: %s" % file_id
             else:
                 raise Exception("upload check failed", search_result)
 
@@ -662,7 +662,8 @@ class Uploadr:
 
                     count = 0
 
-                    while self.photos_on_flickr(stored_md5) > 0:
+                    left_photos = self.photos_on_flickr(stored_md5)
+                    while left_photos > 0:
                         if count > MAX_UPLOAD_ATTEMPTS:
                             raise Exception('file still not deleted after %d attempts' % count, files_id, file_md5,
                                             file_path)
