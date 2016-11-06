@@ -577,7 +577,7 @@ class Uploadr:
         con.text_factory = str
         with con:
             cur = con.cursor()
-            cur.execute("SELECT files_id,path,md5,lastx_modified FROM files WHERE path = ?", (file,))
+            cur.execute("SELECT files_id, path, md5, last_modified FROM files WHERE path = ?", (file,))
             (files_id, file_path, stored_md5, stored_last_modified) = cur.fetchone()
 
         last_modified = os.stat(file).st_mtime
