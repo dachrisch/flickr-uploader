@@ -648,7 +648,7 @@ class Uploadr:
                 if file_md5 != str(stored_md5):
                     print("File Change...replacing " + file_path + "...")
                     left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
-                    assert 1 == left_photos
+                    assert 1 == left_photos, stored_md5
                     with con:
                         cur = con.cursor()
                         self.deleteFile(files_id, file_path, cur)
