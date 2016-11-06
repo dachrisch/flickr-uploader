@@ -673,7 +673,7 @@ class Uploadr:
             if count > MAX_UPLOAD_ATTEMPTS:
                 raise Exception('tried %d times, but did not succeed' % count, on_error)
             count += 1
-            print 'waiting for %d photo(s) md5(%s) on flickr...found %d' % (md5, how_many, left_photos)
+            print 'waiting for %d photo(s) md5(%s) on flickr...found %d' % (how_many, md5, left_photos)
             time.sleep(20)
             left_photos = self.photos_on_flickr(md5)
 
