@@ -648,9 +648,11 @@ class Uploadr:
                     with con:
                         cur = con.cursor()
                         self.deleteFile(row[1], row[2], cur)
-                    while self.photos_search(fileMd5)["photos"]["total"] > 0:
-                        print 'waiting for photo to be deleted on flickr...'
+                    photos_total = self.photos_search(row[4])["photos"]["total"]
+                    while photos_total > 0:
+                        print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (row[4], photos_total)
                         time.sleep(5)
+                        photos_total = self.photos_search(row[4])["photos"]["total"]
                     self.uploadFile(file)
         return success
 
