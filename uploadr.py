@@ -669,7 +669,7 @@ class Uploadr:
     def wait_for_found_photos(self, md5, how_many, on_error):
         left_photos = self.photos_on_flickr(md5)
         count = 0
-        while left_photos == how_many:
+        while not left_photos == how_many:
             if count > MAX_UPLOAD_ATTEMPTS:
                 raise Exception('tried %d times, but did not succeed' % count, on_error)
             count += 1
