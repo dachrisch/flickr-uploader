@@ -577,11 +577,11 @@ class Uploadr:
         con.text_factory = str
         with con:
             cur = con.cursor()
-            cur.execute("SELECT rowid,files_id,path,set_id,md5,tagged,last_modified FROM files WHERE path = ?", (file,))
-            row = cur.fetchone()
+            cur.execute("SELECT files_id,path,md5,lastx_modified FROM files WHERE path = ?", (file,))
+            (files_id, file_path, stored_md5, stored_last_modified) = cur.fetchone()
 
         last_modified = os.stat(file).st_mtime
-        if row is None:
+        if files_id is None:
             print("Uploading " + file + "...")
 
             if FULL_SET_NAME:
@@ -638,21 +638,21 @@ class Uploadr:
                     (file_id, file, file_checksum, last_modified))
             success = True
         elif MANAGE_CHANGES:
-            if row[6] is None:
+            if stored_last_modified is None:
                 with con:
                     cur = con.cursor()
-                    cur.execute('UPDATE files SET last_modified = ? WHERE files_id = ?', (last_modified, row[1]))
-            if row[6] != last_modified:
-                fileMd5 = md5Checksum(file)
-                if fileMd5 != str(row[4]):
+                    cur.execute('UPDATE files SET last_modified = ? WHERE files_id = ?', (last_modified, files_id))
+            if stored_last_modified != last_modified:
+                file_md5 = md5Checksum(file)
+                if file_md5 != str(stored_md5):
                     with con:
                         cur = con.cursor()
-                        self.deleteFile(row[1], row[2], cur)
-                    photos_total = self.photos_search(row[4])["photos"]["total"]
-                    while photos_total > 0:
-                        print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (row[4], photos_total)
+                        self.deleteFile(files_id, file_path, cur)
+                    left_photos = self.photos_search(stored_md5)["photos"]["total"]
+                    while left_photos > 0:
+                        print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (stored_md5, left_photos)
                         time.sleep(5)
-                        photos_total = self.photos_search(row[4])["photos"]["total"]
+                        left_photos = self.photos_search(stored_md5)["photos"]["total"]
                     self.uploadFile(file)
         return success
 
