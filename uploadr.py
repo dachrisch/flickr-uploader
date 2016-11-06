@@ -634,8 +634,8 @@ class Uploadr:
             with con:
                 cur = con.cursor()
                 cur.execute(
-                        'INSERT INTO files (files_id, path, md5, last_modified, tagged) VALUES (?, ?, ?, ?, 1)',
-                        (file_id, file, file_checksum, last_modified))
+                    'INSERT INTO files (files_id, path, md5, last_modified, tagged) VALUES (?, ?, ?, ?, 1)',
+                    (file_id, file, file_checksum, last_modified))
             success = True
         elif MANAGE_CHANGES:
             if row[6] is None:
@@ -739,7 +739,7 @@ class Uploadr:
         url = urlGen(api.rest, d, sig)
 
         res = urllib2.urlopen(url, timeout=SOCKET_TIMEOUT).read()
-        if 'stat="ok"' in res:
+        if 'stat="ok"' in res or 'not found (invalid ID)' in res or 'stat="nok"' in res:
 
             # Find out if the file is the last item in a set, if so, remove the set from the local db
             cur.execute("SELECT set_id FROM files WHERE files_id = ?", (file_id,))
@@ -753,9 +753,6 @@ class Uploadr:
             # Delete file record from the local db
             cur.execute("DELETE FROM files WHERE files_id = ?", (file_id,))
             print("Successful deletion.")
-        elif 'stat="nok"' in res:
-            # File already removed from Flicker
-            cur.execute("DELETE FROM files WHERE files_id = ?", (file_id,))
         else:
             raise Exception(res)
 
