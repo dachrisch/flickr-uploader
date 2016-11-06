@@ -569,8 +569,6 @@ class Uploadr:
         print("*****Completed uploading files*****")
 
     def upload_file(self, file_path):
-        """ uploadFile
-        """
 
         success = False
         con = lite.connect(DB_PATH)
@@ -613,7 +611,7 @@ class Uploadr:
             d["api_key"] = FLICKR["api_key"]
             url = build_request(api.upload, d, (photo,))
 
-            print("Check is file already uploaded...")
+            print("Check is file md5(%s) already uploaded..." % file_checksum)
             search_result = self.photos_search(file_checksum)
             if int(search_result["photos"]["total"]) == 0:
                 print("not found, upload file...")
@@ -646,7 +644,7 @@ class Uploadr:
             if stored_last_modified != last_modified:
                 file_md5 = md5Checksum(file_path)
                 if file_md5 != str(stored_md5):
-                    print("File Change...replacing " + file_path + "...")
+                    print("File Change...replacing file %s(%s)" % (file_path, stored_md5))
                     left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
                     assert 1 == left_photos, stored_md5
                     with con:
@@ -663,6 +661,7 @@ class Uploadr:
                         time.sleep(5)
                         left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
                     self.upload_file(file_path)
+                    assert 1 == int(self.photos_search(file_md5)["photos"]["total"])
         return success
 
     def replacePhoto(self, file, file_id, oldFileMd5, fileMd5, last_modified, cur, con):
