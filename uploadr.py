@@ -660,20 +660,22 @@ class Uploadr:
                     else:
                         raise Exception('too many pictures on flickr', file_path, stored_md5)
 
-                    count = 0
-
-                    left_photos = 1
-                    while left_photos > 0:
-                        if count > MAX_UPLOAD_ATTEMPTS:
-                            raise Exception('file still not deleted after %d attempts' % count, files_id, stored_md5,
-                                            file_path)
-                        count += 1
-                        print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (stored_md5, left_photos)
-                        time.sleep(20)
-                        left_photos = self.photos_on_flickr(stored_md5)
+                    self.wait_for_found_photos(0, stored_md5,
+                                               ('file still not deleted', files_id, stored_md5, file_path))
                     self.upload_file(file_path)
-                    assert 1 == self.photos_on_flickr(file_md5)
+                    self.wait_for_found_photos(file_md5, 1, 'uploaded photo not found', file_md5, file_path)
         return success
+
+    def wait_for_found_photos(self, md5, how_many, on_error):
+        left_photos = self.photos_on_flickr(md5)
+        count = 0
+        while left_photos == how_many:
+            if count > MAX_UPLOAD_ATTEMPTS:
+                raise Exception('tried %d times, but did not succeed' % count, on_error)
+            count += 1
+            print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (md5, left_photos)
+            time.sleep(20)
+            left_photos = self.photos_on_flickr(md5)
 
     def photos_on_flickr(self, md5):
         return int(self.photos_search(md5)["photos"]["total"])
