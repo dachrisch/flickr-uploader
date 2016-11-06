@@ -645,11 +645,21 @@ class Uploadr:
                 file_md5 = md5Checksum(file_path)
                 if file_md5 != str(stored_md5):
                     print("File Change...replacing file %s(%s)" % (file_path, stored_md5))
-                    left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
-                    if 1 == left_photos:
+                    found_photos = self.photos_on_flickr(stored_md5)
+                    if found_photos < 2:
+                        # should happen
                         with con:
                             cur = con.cursor()
                             self.deleteFile(files_id, file_path, cur)
+                    elif 1 == self.photos_on_flickr(file_md5):
+                        # new file already on flickr, update database
+                        with con:
+                            cur = con.cursor()
+                            cur.execute('UPDATE files SET md5 = ?, last_modified = ? WHERE files_id = ?',
+                                        (file_md5, last_modified, files_id))
+                    else:
+                        raise Exception('too many pictures on flickr', file_path, stored_md5)
+
                     count = 0
 
                     while left_photos > 0:
@@ -659,10 +669,13 @@ class Uploadr:
                         count += 1
                         print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (stored_md5, left_photos)
                         time.sleep(5)
-                        left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
+                        left_photos = self.photos_on_flickr(stored_md5)
                     self.upload_file(file_path)
-                    assert 1 == int(self.photos_search(file_md5)["photos"]["total"])
+                    assert 1 == self.photos_on_flickr(file_md5)
         return success
+
+    def photos_on_flickr(self, md5):
+        return int(self.photos_search(md5)["photos"]["total"])
 
     def replacePhoto(self, file, file_id, oldFileMd5, fileMd5, last_modified, cur, con):
         filename, extension = os.path.splitext(file)
