@@ -662,7 +662,7 @@ class Uploadr:
 
                     count = 0
 
-                    left_photos = self.photos_on_flickr(stored_md5)
+                    left_photos = 1
                     while left_photos > 0:
                         if count > MAX_UPLOAD_ATTEMPTS:
                             raise Exception('file still not deleted after %d attempts' % count, files_id, stored_md5,
@@ -670,6 +670,7 @@ class Uploadr:
                         count += 1
                         print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (stored_md5, left_photos)
                         time.sleep(20)
+                        left_photos = self.photos_on_flickr(stored_md5)
                     self.upload_file(file_path)
                     assert 1 == self.photos_on_flickr(file_md5)
         return success
