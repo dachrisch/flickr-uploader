@@ -561,14 +561,14 @@ class Uploadr:
         changedMedia_count = len(changedMedia)
 
         for i, file in enumerate(changedMedia):
-            success = self.uploadFile(file)
+            success = self.upload_file(file)
             if args.drip_feed and success and i != changedMedia_count - 1:
                 print("Waiting " + str(DRIP_TIME) + " seconds before next upload")
                 time.sleep(DRIP_TIME)
         print("   " + str(changedMedia_count) + " files processed (uploaded, md5ed or timestamp checked)")
         print("*****Completed uploading files*****")
 
-    def uploadFile(self, file):
+    def upload_file(self, file_path):
         """ uploadFile
         """
 
@@ -577,32 +577,32 @@ class Uploadr:
         con.text_factory = str
         with con:
             cur = con.cursor()
-            cur.execute("SELECT files_id, path, md5, last_modified FROM files WHERE path = ?", (file,))
+            cur.execute("SELECT files_id, path, md5, last_modified FROM files WHERE path = ?", (file_path,))
             row = cur.fetchone()
 
-        last_modified = os.stat(file).st_mtime
+        last_modified = os.stat(file_path).st_mtime
         if row is None:
-            print("Uploading " + file + "...")
+            print("Uploading " + file_path + "...")
 
             if FULL_SET_NAME:
-                setName = os.path.relpath(os.path.dirname(file), FILES_DIR)
+                set_name = os.path.relpath(os.path.dirname(file_path), FILES_DIR)
             else:
-                head, setName = os.path.split(os.path.dirname(file))
-            photo = ('photo', file.encode('utf-8'), open(file, 'rb').read())
+                head, set_name = os.path.split(os.path.dirname(file_path))
+            photo = ('photo', file_path.encode('utf-8'), open(file_path, 'rb').read())
             if args.title:  # Replace
                 FLICKR["title"] = args.title
             if args.description:  # Replace
                 FLICKR["description"] = args.description
             if args.tags:  # Append
                 FLICKR["tags"] += " "
-            file_checksum = md5Checksum(file)
+            file_checksum = md5Checksum(file_path)
             d = {
                 "auth_token": str(self.token),
                 "perms": str(self.perms),
                 "title": str(FLICKR["title"]),
                 "description": str(FLICKR["description"]),
                 # replace commas to avoid tags conflicts
-                "tags": '{} {} checksum:{}'.format(FLICKR["tags"], setName.encode('utf-8'),
+                "tags": '{} {} checksum:{}'.format(FLICKR["tags"], set_name.encode('utf-8'),
                                                    file_checksum).replace(',', ''),
                 "is_public": str(FLICKR["is_public"]),
                 "is_friend": str(FLICKR["is_friend"]),
@@ -619,9 +619,9 @@ class Uploadr:
                 print("not found, upload file...")
                 res = parse(urllib2.urlopen(url, timeout=SOCKET_TIMEOUT))
                 if res.documentElement.attributes['stat'].value != "ok":
-                    print("A problem occurred while attempting to upload the file: " + file)
+                    print("A problem occurred while attempting to upload the file: " + file_path)
                     raise IOError(str(res.toxml()))
-                print("Successfully uploaded the file: " + file)
+                print("Successfully uploaded the file: " + file_path)
 
                 file_id = int(str(res.getElementsByTagName('photoid')[0].firstChild.nodeValue))
             elif int(search_result["photos"]["total"]) == 1:
@@ -635,7 +635,7 @@ class Uploadr:
                 cur = con.cursor()
                 cur.execute(
                     'INSERT INTO files (files_id, path, md5, last_modified, tagged) VALUES (?, ?, ?, ?, 1)',
-                    (file_id, file, file_checksum, last_modified))
+                    (file_id, file_path, file_checksum, last_modified))
             success = True
         elif MANAGE_CHANGES:
             (files_id, file_path, stored_md5, stored_last_modified) = row
@@ -644,13 +644,14 @@ class Uploadr:
                     cur = con.cursor()
                     cur.execute('UPDATE files SET last_modified = ? WHERE files_id = ?', (last_modified, files_id))
             if stored_last_modified != last_modified:
-                file_md5 = md5Checksum(file)
+                file_md5 = md5Checksum(file_path)
                 if file_md5 != str(stored_md5):
                     with con:
                         cur = con.cursor()
                         self.deleteFile(files_id, file_path, cur)
-                    left_photos = self.photos_search(stored_md5)["photos"]["total"]
+                    left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
                     count = 0
+
                     while left_photos > 0:
                         if count > MAX_UPLOAD_ATTEMPTS:
                             raise Exception('file still not deleted after %d attempts' % count, files_id, file_md5,
@@ -658,8 +659,8 @@ class Uploadr:
                         count += 1
                         print 'waiting for photo md5(%s) to be deleted on flickr...%d left' % (stored_md5, left_photos)
                         time.sleep(5)
-                        left_photos = self.photos_search(stored_md5)["photos"]["total"]
-                    self.uploadFile(file)
+                        left_photos = int(self.photos_search(stored_md5)["photos"]["total"])
+                    self.upload_file(file_path)
         return success
 
     def replacePhoto(self, file, file_id, oldFileMd5, fileMd5, last_modified, cur, con):
