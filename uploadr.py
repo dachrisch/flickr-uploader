@@ -578,10 +578,10 @@ class Uploadr:
         with con:
             cur = con.cursor()
             cur.execute("SELECT files_id, path, md5, last_modified FROM files WHERE path = ?", (file,))
-            (files_id, file_path, stored_md5, stored_last_modified) = cur.fetchone()
+            row = cur.fetchone()
 
         last_modified = os.stat(file).st_mtime
-        if files_id is None:
+        if row is None:
             print("Uploading " + file + "...")
 
             if FULL_SET_NAME:
@@ -638,6 +638,7 @@ class Uploadr:
                     (file_id, file, file_checksum, last_modified))
             success = True
         elif MANAGE_CHANGES:
+            (files_id, file_path, stored_md5, stored_last_modified) = row
             if stored_last_modified is None:
                 with con:
                     cur = con.cursor()
