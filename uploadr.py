@@ -660,10 +660,10 @@ class Uploadr:
                     else:
                         raise Exception('too many pictures on flickr', file_path, stored_md5)
 
-                    self.wait_for_found_photos(0, stored_md5,
+                    self.wait_for_found_photos(stored_md5, 0,
                                                ('file still not deleted', files_id, stored_md5, file_path))
                     self.upload_file(file_path)
-                    self.wait_for_found_photos(file_md5, 1, 'uploaded photo not found', file_md5, file_path)
+                    self.wait_for_found_photos(file_md5, 1, ('uploaded photo not found', file_md5, file_path))
         return success
 
     def wait_for_found_photos(self, md5, how_many, on_error):
